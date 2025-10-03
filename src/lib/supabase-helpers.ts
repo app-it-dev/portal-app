@@ -39,10 +39,10 @@ export function importPostToPostRow(importPost: ImportPost): PostRow {
  */
 export function postRowToImportPostInsert(
   postRow: Partial<PostRow> & { url: string },
-  adminId?: string
+  adminUserId?: string
 ): ImportPostInsert {
   return {
-    admin_id: adminId!,
+    admin_user_id: adminUserId!,
     url: postRow.url,
     source: postRow.source ?? null,
     note: postRow.note ?? null,

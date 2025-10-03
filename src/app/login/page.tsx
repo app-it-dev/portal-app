@@ -19,19 +19,8 @@ export default function LoginPage() {
     try {
       const supabase = getSupabase();
       if (!supabase) {
-        // Demo mode - allow login with any credentials
         console.log('Demo mode: Allowing login without Supabase');
-        
-        // Store demo admin info in session storage
-        sessionStorage.setItem('admin_user', JSON.stringify({
-          id: 'demo-user-id',
-          email: email,
-          admin_id: 'demo-admin-id',
-          role: 'super_admin',
-        }));
-
-        // Redirect to the main portal
-        router.push('/import');
+        router.push('/portal');
         return;
       }
 
@@ -49,7 +38,7 @@ export default function LoginPage() {
         throw new Error('Authentication failed');
       }
 
-      // Check if the user is an admin by querying the portal_admin table
+      // Check if the user is an admin via public.admins
       console.log('Checking admin status for user:', authData.user.id);
       console.log('User email:', authData.user.email);
       
@@ -69,28 +58,21 @@ export default function LoginPage() {
       console.log('IDs match:', session?.user?.id === authData.user.id);
       
       // Try the admin check with better error handling
-      let adminData, adminError;
+      let adminRow = null;
       try {
-        const result = await supabase
-          .from('portal_admin')
-          .select('*')
+        const { data } = await supabase
+          .from('admins')
+          .select('user_id, role, is_active')
           .eq('user_id', authData.user.id)
           .eq('is_active', true)
-          .single();
-        
-        adminData = result.data;
-        adminError = result.error;
+          .limit(1);
+        adminRow = data && data.length > 0 ? data[0] : null;
       } catch (err) {
-        console.error('Query failed with exception:', err);
-        adminError = err;
-        adminData = null;
+        console.error('Admin query failed:', err);
       }
 
-      console.log('Admin check result:', { adminData, adminError });
-      console.log('Admin data:', adminData);
-
-      if (adminError || !adminData) {
-        console.error('Admin check failed:', adminError);
+      if (!adminRow) {
+        console.error('Admin check failed: not in public.admins or not active');
         console.log('User ID from auth:', authData.user.id);
         console.log('Email from auth:', authData.user.email);
         
@@ -98,15 +80,7 @@ export default function LoginPage() {
         const knownAdminEmails = ['test1@test1.com', 'admin@portal.com', 'test@test.com', 'test@supabase.com'];
         if (authData.user.email && knownAdminEmails.includes(authData.user.email)) {
           console.log('Known admin email detected, allowing access');
-          // Store admin info in session storage
-          sessionStorage.setItem('admin_user', JSON.stringify({
-            id: authData.user.id,
-            email: authData.user.email,
-            role: 'super_admin'
-          }));
-          
-          // Redirect to import page
-          window.location.href = '/import';
+          window.location.href = '/portal';
           return;
         }
         
@@ -115,16 +89,8 @@ export default function LoginPage() {
         throw new Error('Access denied. Admin privileges required.');
       }
 
-      // Store admin info in session storage
-      sessionStorage.setItem('admin_user', JSON.stringify({
-        id: authData.user.id,
-        email: authData.user.email,
-        admin_id: (adminData as any).id,
-        role: (adminData as any).role,
-      }));
-
-      // Redirect to the main portal
-      router.push('/import');
+      // Redirect to the portal
+      router.push('/portal');
     } catch (err: unknown) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Login failed');

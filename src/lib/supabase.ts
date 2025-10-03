@@ -38,15 +38,40 @@ function getSupabaseClient(): SupabaseClient<Database> | null {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        flowType: 'pkce'
+        flowType: 'pkce',
+        storage: {
+          getItem: (key: string) => {
+            if (typeof window !== 'undefined') {
+              // Try to get from cookies first, then localStorage
+              const cookies = document.cookie.split(';');
+              const cookie = cookies.find(c => c.trim().startsWith(`${key}=`));
+              if (cookie) {
+                return cookie.split('=')[1];
+              }
+              return localStorage.getItem(key);
+            }
+            return null;
+          },
+          setItem: (key: string, value: string) => {
+            if (typeof window !== 'undefined') {
+              // Store in both cookies and localStorage
+              document.cookie = `${key}=${value}; path=/; max-age=86400; SameSite=Lax`;
+              localStorage.setItem(key, value);
+            }
+          },
+          removeItem: (key: string) => {
+            if (typeof window !== 'undefined') {
+              // Remove from both cookies and localStorage
+              document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+              localStorage.removeItem(key);
+            }
+          }
+        }
       },
       realtime: {
         params: {
           eventsPerSecond: 10,
         },
-      },
-      db: {
-        schema: 'portal'
       }
     });
     

@@ -1,0 +1,31 @@
+{
+  "sorted_middleware": [],
+  "middleware": {
+    "/": {
+      "files": [
+        "server/edge/chunks/Documents_portal_ed4e838e._.js",
+        "server/edge/chunks/[root-of-the-server]__2a9ee7a5._.js",
+        "server/edge/chunks/turbopack-Documents_portal_portal_edge-wrapper_4c70e3b8.js"
+      ],
+      "name": "middleware",
+      "page": "/",
+      "matchers": [
+        {
+          "regexp": "/:nextData(_next/data/[^/]{1,})?/portal/:path*{(\\\\.json)}?",
+          "originalSource": "/portal/:path*"
+        }
+      ],
+      "wasm": [],
+      "assets": [],
+      "env": {
+        "__NEXT_BUILD_ID": "development",
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "AdXN8Xn/h6QNkiVIsETMpBCtqVvsP57e4VjbVRxEUn8=",
+        "__NEXT_PREVIEW_MODE_ID": "1377e0cc85a6988fb001f00095658893",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "044dc1ceaddb2d1b0256a13cc9d54ed218ac0302514bc7f20154cd68aaf12b9e",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "6e650cd234d3962668bf8410a67bb4b50fb44eb678ae4b17bd1504abaa65606e"
+      }
+    }
+  },
+  "instrumentation": null,
+  "functions": {}
+}

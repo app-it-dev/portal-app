@@ -118,18 +118,14 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       }
       
       // First, let's test a simple query to see if Supabase is working
-      console.log('Testing simple query...');
-      const { data: testData, error: testError } = await getSupabaseClient()
-        .from('portal_admin')
-        .select('count')
-        .limit(1);
-      
-      console.log('Test query result:', { testData, testError });
+      // Admin membership check is enforced by middleware; no legacy portal_admin access here
       
       let data, error;
       try {
         const result = await getSupabaseClient()
-          .from('portal_import_posts')
+          .schema('portal')
+          .schema('portal')
+        .from('portal_import_posts')
           .select('*')
           .order('created_at', { ascending: false });
         
@@ -305,9 +301,21 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       console.log('User authenticated - saving to database');
       console.log('User ID:', session.user.id);
 
-      // Use the fixed admin ID for test1@test1.com
-      const adminId = '21fc9d0d-c6eb-42c2-8ff7-2eda94cc2289';
-      console.log('Using fixed admin ID:', adminId);
+      // Get the current user's admin status from public.admins
+      const { data: adminData, error: adminError } = await getSupabaseClient()
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', session.user.id)
+        .eq('is_active', true)
+        .limit(1);
+      
+      if (adminError || !adminData || adminData.length === 0) {
+        console.error('Admin not found or error:', adminError);
+        throw new Error('Admin not found');
+      }
+      
+      const adminUserId = adminData[0].user_id;
+      console.log('Using admin user ID:', adminUserId);
 
       const urls = rows.map((r) => r.url);
 
@@ -322,7 +330,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
             note: row.note,
             status: 'pending',
           },
-          adminId
+          adminUserId
         )
         );
 
@@ -333,6 +341,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
 
       // Insert to Supabase (realtime will handle UI update)
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .insert(postsToInsert);
 
@@ -411,16 +420,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
         throw new Error('Authentication required');
       }
 
-      const { data: adminData, error: adminError } = await getSupabaseClient()
-        .from('portal_admin')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .eq('is_active', true)
-        .single();
-
-      if (adminError || !adminData) {
-        throw new Error('Admin privileges required');
-      }
+      // Admin check handled by middleware; this action relies on RLS via user JWT
 
       const update = postRowToImportPostUpdate(
         {
@@ -431,6 +431,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       );
 
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update(update)
         .eq('id', id);
@@ -453,6 +454,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       );
 
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update(update)
         .eq('id', id);
@@ -474,6 +476,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       );
 
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update(update)
         .eq('id', id);
@@ -499,6 +502,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
 
       // Update status to analyzing
       await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update({
           status: 'analyzing',
@@ -531,6 +535,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       );
 
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update(update)
         .eq('id', id);
@@ -545,7 +550,8 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
         
         // Revert status on error
         await getSupabaseClient()
-          .from('portal_import_posts')
+          .schema('portal')
+        .from('portal_import_posts')
           .update({
             status: 'pending',
             last_modified_by: get().userId,
@@ -572,6 +578,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       );
 
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update(update)
         .eq('id', id);
@@ -605,6 +612,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
     try {
       // Delete all posts for current user
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .delete()
         .eq('created_by', get().userId);
@@ -636,6 +644,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       );
 
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update(update)
         .eq('id', id);
@@ -663,6 +672,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       );
 
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update(update)
         .eq('id', id);
@@ -694,6 +704,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       );
 
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update(update)
         .eq('id', id);
@@ -728,6 +739,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       console.log('📤 Update payload:', update);
 
       const { data, error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update(update)
         .eq('id', id)
@@ -759,6 +771,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       );
 
       const { error } = await getSupabaseClient()
+        .schema('portal')
         .from('portal_import_posts')
         .update(update)
         .eq('id', id);

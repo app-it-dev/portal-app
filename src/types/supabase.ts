@@ -40,7 +40,7 @@ export interface Database {
       portal_import_posts: {
         Row: {
           id: string;
-          admin_id: string;
+          admin_user_id: string;
           url: string;
           source: string | null;
           note: string | null;
@@ -81,7 +81,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          admin_id: string;
+          admin_user_id: string;
           url: string;
           source?: string | null;
           note?: string | null;
