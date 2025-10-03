@@ -191,8 +191,6 @@ export const useStore = create<Store>((set, get) => ({
         60000, // 60 second timeout
       );
 
-      // Log raw response for debugging
-      console.debug('AI raw', response);
 
       // Adapt the response to our format
       const parsedJson = adaptAiToParsedPost(response, post.url);

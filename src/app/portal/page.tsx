@@ -5,7 +5,6 @@ export default async function PortalHome() {
 
   // Check authentication
   const { data: { user }, error: userError } = await supabase.auth.getUser();
-  console.log('Server user:', user?.id, userError);
 
   // Check admin status
   const { data: adminCheck, error: adminError } = await supabase
@@ -14,7 +13,6 @@ export default async function PortalHome() {
     .eq('user_id', user?.id)
     .eq('is_active', true)
     .limit(1);
-  console.log('Admin check:', adminCheck, adminError);
 
   const { data: dashboard, error: dashboardError } = await supabase
     .schema('portal')

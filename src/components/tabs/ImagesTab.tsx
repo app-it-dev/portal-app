@@ -293,19 +293,11 @@ export function ImagesTab({ post }: ImagesTabProps) {
           </button>
         </div>
         
-        {/* Debug Info */}
-        <div className="mt-2 p-2 bg-slate-100 rounded text-xs">
-          <strong>Debug:</strong> {images.length} images | 
-          Kept: {images.filter(img => img.keep).length} | 
-          Main: {images.findIndex(img => img.isMain)} | 
-          State: {JSON.stringify(images.map(img => ({ keep: img.keep, isMain: img.isMain })))}
-        </div>
       </div>
 
       <div className="flex-1 overflow-auto section-padding py-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
           {images.map((image, index) => {
-            console.log(`Rendering image ${index}:`, { keep: image.keep, isMain: image.isMain });
             return (
             <div
               key={`${post.id}-${image.url}-${index}`}

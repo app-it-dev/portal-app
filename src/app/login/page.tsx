@@ -19,9 +19,7 @@ export default function LoginPage() {
     try {
       const supabase = getSupabase();
       if (!supabase) {
-        console.log('Demo mode: Allowing login without Supabase');
-        router.push('/portal');
-        return;
+        throw new Error('Supabase client not available');
       }
 
       // First, try to authenticate with Supabase Auth
@@ -39,23 +37,9 @@ export default function LoginPage() {
       }
 
       // Check if the user is an admin via public.admins
-      console.log('Checking admin status for user:', authData.user.id);
-      console.log('User email:', authData.user.email);
-      
-      // Check if supabase client is available
-      if (!supabase) {
-        console.error('Supabase client not available');
-        throw new Error('Supabase client not available');
-      }
-      
-      console.log('Supabase client available:', !!supabase);
       
       // Check current session to ensure user is properly authenticated
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('Current session:', { session, sessionError });
-      console.log('Session user ID:', session?.user?.id);
-      console.log('Auth user ID:', authData.user.id);
-      console.log('IDs match:', session?.user?.id === authData.user.id);
       
       // Try the admin check with better error handling
       let adminRow = null;
@@ -68,22 +52,10 @@ export default function LoginPage() {
           .limit(1);
         adminRow = data && data.length > 0 ? data[0] : null;
       } catch (err) {
-        console.error('Admin query failed:', err);
+        // Admin query failed
       }
 
       if (!adminRow) {
-        console.error('Admin check failed: not in public.admins or not active');
-        console.log('User ID from auth:', authData.user.id);
-        console.log('Email from auth:', authData.user.email);
-        
-        // Check if this is a known admin email (temporary workaround)
-        const knownAdminEmails = ['test1@test1.com', 'admin@portal.com', 'test@test.com', 'test@supabase.com'];
-        if (authData.user.email && knownAdminEmails.includes(authData.user.email)) {
-          console.log('Known admin email detected, allowing access');
-          window.location.href = '/portal';
-          return;
-        }
-        
         // Sign out the user if they're not an admin
         await supabase.auth.signOut();
         throw new Error('Access denied. Admin privileges required.');
@@ -92,7 +64,6 @@ export default function LoginPage() {
       // Redirect to the portal
       router.push('/portal');
     } catch (err: unknown) {
-      console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);

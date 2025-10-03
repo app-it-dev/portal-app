@@ -21,17 +21,9 @@ function getSupabaseClient(): SupabaseClient<Database> | null {
 
     // Check if URL is valid for testing
     if (supabaseUrl === 'your_supabase_project_url' || supabaseUrl === 'https://demo-project.supabase.co') {
-      console.warn('Using demo Supabase URL. For production, update .env.local with your actual Supabase credentials');
-      // Return null to prevent errors, but allow the app to run in demo mode
-      return null;
+      throw new Error('Invalid Supabase configuration. Please update .env.local with your actual Supabase credentials');
     }
 
-    console.log('Initializing Supabase client...', {
-      url: supabaseUrl,
-      keyLength: supabaseAnonKey.length,
-      hasUrl: !!supabaseUrl,
-      hasKey: !!supabaseAnonKey
-    });
 
     supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -75,7 +67,6 @@ function getSupabaseClient(): SupabaseClient<Database> | null {
       }
     });
     
-    console.log('✅ Supabase client initialized successfully');
   }
 
   return supabaseInstance;
@@ -100,7 +91,6 @@ export const getCurrentUser = async () => {
     const { data: { session } } = await client.auth.getSession();
     return session?.user ?? null;
   } catch (error) {
-    console.error('Error getting user:', error);
     return null;
   }
 };
@@ -122,7 +112,6 @@ export const signInWithEmail = async (email: string, password: string) => {
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error signing in with email:', error);
     throw error;
   }
 };
@@ -143,7 +132,6 @@ export const signUpWithEmail = async (email: string, password: string) => {
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error signing up with email:', error);
     throw error;
   }
 };
@@ -166,7 +154,6 @@ export const signInWithMagicLink = async (email: string) => {
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error sending magic link:', error);
     throw error;
   }
 };
@@ -183,7 +170,6 @@ export const signOut = async () => {
     const { error } = await client.auth.signOut();
     if (error) throw error;
   } catch (error) {
-    console.error('Error signing out:', error);
     throw error;
   }
 };
@@ -202,7 +188,6 @@ export const signInAnonymously = async () => {
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error signing in anonymously:', error);
     throw error;
   }
 };

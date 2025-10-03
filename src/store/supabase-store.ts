@@ -198,7 +198,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
 
               if (eventType === 'INSERT' && newRecord) {
                 console.log('➕ INSERT event - adding new post');
-                const newPost = importPostToPostRow(newRecord as Database['public']['Tables']['portal_import_posts']['Row']);
+                const newPost = importPostToPostRow(newRecord as Database['portal']['Tables']['portal_import_posts']['Row']);
                 set((state) => {
                   // Check if post already exists (prevent duplicates)
                   const exists = state.posts.some((p) => p.id === newPost.id);
@@ -212,7 +212,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
                 });
               } else if (eventType === 'UPDATE' && newRecord) {
                 console.log('✏️ UPDATE event - updating post');
-                const updatedPost = importPostToPostRow(newRecord as Database['public']['Tables']['portal_import_posts']['Row']);
+                const updatedPost = importPostToPostRow(newRecord as Database['portal']['Tables']['portal_import_posts']['Row']);
                 set((state) => ({
                   posts: state.posts.map((p) =>
                     p.id === updatedPost.id ? updatedPost : p
@@ -221,7 +221,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
               } else if (eventType === 'DELETE' && oldRecord) {
                 console.log('🗑️ DELETE event - removing post');
                 set((state) => ({
-                  posts: state.posts.filter((p) => p.id !== (oldRecord as Database['public']['Tables']['portal_import_posts']['Row']).id),
+                    posts: state.posts.filter((p) => p.id !== (oldRecord as Database['portal']['Tables']['portal_import_posts']['Row']).id),
                 }));
               }
             } catch (err) {
@@ -314,7 +314,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
         throw new Error('Admin not found');
       }
       
-      const adminUserId = adminData[0].user_id;
+      const adminUserId = (adminData[0] as { user_id: string }).user_id;
       console.log('Using admin user ID:', adminUserId);
 
       const urls = rows.map((r) => r.url);

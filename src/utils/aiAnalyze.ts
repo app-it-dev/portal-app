@@ -259,7 +259,7 @@ export function adaptAiToParsedPost(res: unknown, fallbackUrl: string): ParsedPo
       no_accident_history: Boolean((carHistory as Record<string, unknown>)?.no_accident_history),
       full_service_history: Boolean((carHistory as Record<string, unknown>)?.full_service_history)
     } : null,
-    raw: item, // Keep original for debugging
+    raw: item,
   };
 
   const result = {
