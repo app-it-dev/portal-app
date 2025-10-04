@@ -30,10 +30,16 @@ export function RawDataStep({ post, onSave, onNext, onAnalyze, isAnalyzing }: Ra
       hasParsedJson: !!post.parsedJson,
       isAnalyzing,
       postStatus: post.status,
-      stepCompleted: post.stepCompleted
+      stepCompleted: post.stepCompleted,
+      isRawStepCompleted: post.stepCompleted?.raw
     });
     
-    if (shouldAutoAdvance && post.parsedJson && !isAnalyzing) {
+    // Only auto-advance if:
+    // 1. We should auto-advance (analysis completed)
+    // 2. We have parsed JSON data
+    // 3. We're not currently analyzing
+    // 4. The raw step is actually completed (this ensures n8n workflow finished)
+    if (shouldAutoAdvance && post.parsedJson && !isAnalyzing && post.stepCompleted?.raw) {
       console.log('Auto-advancing to next step...');
       setShouldAutoAdvance(false);
       // Small delay to ensure UI is ready

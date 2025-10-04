@@ -7,9 +7,10 @@ export async function GET() {
   try {
     const supabase = getServerSupabase();
     
-    // Fetch basic statistics
+    // Fetch basic statistics from portal_import_posts
     const { data: stats, error: statsError } = await supabase
-      .from('post_dash')
+      .schema('portal')
+      .from('portal_import_posts')
       .select('*');
 
     if (statsError) {
@@ -17,14 +18,15 @@ export async function GET() {
       return NextResponse.json({ error: 'Failed to fetch posts data' }, { status: 500 });
     }
 
-    // Calculate statistics
+    // Calculate statistics for portal_import_posts
     const totalPosts = stats.length;
-    const availablePosts = stats.filter(p => p.status === 'Available').length;
-    const pendingPosts = stats.filter(p => p.status === 'Pending').length;
-    const soldPosts = stats.filter(p => p.status === 'Sold').length;
-    const verifiedPosts = stats.filter(p => p.verified).length;
+    const pendingPosts = stats.filter(p => p.status === 'pending').length;
+    const analyzingPosts = stats.filter(p => p.status === 'analyzing').length;
+    const analyzedPosts = stats.filter(p => p.status === 'analyzed').length;
+    const rejectedPosts = stats.filter(p => p.status === 'rejected').length;
+    const completedPosts = stats.filter(p => p.status === 'completed').length;
     
-    const prices = stats.map(p => p.price).filter(p => p);
+    const prices = stats.map(p => p.car_price).filter(p => p !== null && p !== undefined);
     const avgPrice = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
     const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
     const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
@@ -33,25 +35,29 @@ export async function GET() {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const postsLast30Days = stats.filter(p => new Date(p.created_at) >= thirtyDaysAgo).length;
 
-    // Make distribution
+    // Make distribution (from analyzed posts)
     const makeCounts: { [key: string]: number } = {};
-    stats.forEach(post => {
-      makeCounts[post.make] = (makeCounts[post.make] || 0) + 1;
+    stats.filter(p => p.make).forEach(post => {
+      if (post.make) {
+        makeCounts[post.make] = (makeCounts[post.make] || 0) + 1;
+      }
     });
     const makeDistribution = Object.entries(makeCounts)
       .map(([make, count]) => ({ make, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Country distribution
-    const countryCounts: { [key: string]: number } = {};
-    stats.forEach(post => {
-      countryCounts[post.country] = (countryCounts[post.country] || 0) + 1;
+    // Source distribution
+    const sourceCounts: { [key: string]: number } = {};
+    stats.filter(p => p.source).forEach(post => {
+      if (post.source) {
+        sourceCounts[post.source] = (sourceCounts[post.source] || 0) + 1;
+      }
     });
-    const countryDistribution = Object.entries(countryCounts)
-      .map(([country, count]) => ({ country, count }))
+    const sourceDistribution = Object.entries(sourceCounts)
+      .map(([source, count]) => ({ source, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Price range distribution
+    // Price range distribution (using car_price)
     const priceRanges = [
       { range: 'Under $100k', min: 0, max: 100000 },
       { range: '$100k - $200k', min: 100000, max: 200000 },
@@ -63,7 +69,7 @@ export async function GET() {
     
     const priceRangeDistribution = priceRanges.map(range => ({
       range: range.range,
-      count: stats.filter(p => p.price >= range.min && p.price < range.max).length
+      count: stats.filter(p => p.car_price && p.car_price >= range.min && p.car_price < range.max).length
     }));
 
     // Monthly trend (last 6 months)
@@ -88,27 +94,29 @@ export async function GET() {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5)
       .map(post => ({
-        post_id: post.post_id,
+        id: post.id,
+        url: post.url,
         make: post.make,
         model: post.model,
         year: post.year,
-        price: post.price,
+        car_price: post.car_price,
         status: post.status,
         created_at: post.created_at
       }));
 
     const dashboardData = {
       totalPosts,
-      availablePosts,
       pendingPosts,
-      soldPosts,
-      verifiedPosts,
+      analyzingPosts,
+      analyzedPosts,
+      rejectedPosts,
+      completedPosts,
       avgPrice,
       minPrice,
       maxPrice,
       postsLast30Days,
       makeDistribution,
-      countryDistribution,
+      sourceDistribution,
       priceRangeDistribution,
       monthlyTrend,
       recentPosts

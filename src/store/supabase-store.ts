@@ -9,6 +9,7 @@ import {
   postRowToImportPostUpdate,
   checkUrlsDuplicates,
 } from '@/lib/supabase-helpers';
+import { logError } from '@/utils/errorLogger';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface SupabaseStoreState extends Store {
@@ -16,6 +17,7 @@ interface SupabaseStoreState extends Store {
   realtimeChannel: RealtimeChannel | null;
   isHydrated: boolean;
   isOnline: boolean;
+  signOut: () => Promise<void>;
 }
 
 // Prevent multiple hydrations
@@ -125,7 +127,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
         const result = await getSupabaseClient()
           .schema('portal')
           .schema('portal')
-        .from('portal_import_posts')
+          .from('portal_import_posts')
           .select('*')
           .order('created_at', { ascending: false });
         
@@ -214,9 +216,23 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
                 console.log('✏️ UPDATE event - updating post');
                 const updatedPost = importPostToPostRow(newRecord as Database['portal']['Tables']['portal_import_posts']['Row']);
                 set((state) => ({
-                  posts: state.posts.map((p) =>
-                    p.id === updatedPost.id ? updatedPost : p
-                  ),
+                  posts: state.posts.map((p) => {
+                    if (p.id === updatedPost.id) {
+                      // Preserve local parsedJson if it exists and database version is empty
+                      const hasLocalParsedJson = p.parsedJson && Object.keys(p.parsedJson).length > 0;
+                      const hasDbParsedJson = updatedPost.parsedJson && Object.keys(updatedPost.parsedJson).length > 0;
+                      
+                      if (hasLocalParsedJson && !hasDbParsedJson) {
+                        console.log('🔄 Preserving local parsedJson data');
+                        return {
+                          ...updatedPost,
+                          parsedJson: p.parsedJson
+                        };
+                      }
+                      return updatedPost;
+                    }
+                    return p;
+                  }),
                 }));
               } else if (eventType === 'DELETE' && oldRecord) {
                 console.log('🗑️ DELETE event - removing post');
@@ -254,7 +270,8 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       hasHydrated = true;
       isHydrating = false;
     } catch (error) {
-      console.error('Hydration error:', error);
+      logError(error, 'Hydration');
+      
       // Mark as hydrated even on error to prevent infinite loading
       set({ isHydrated: true, posts: [] });
       isHydrating = false;
@@ -352,7 +369,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
 
       console.log(`✅ Imported ${postsToInsert.length} posts to database`);
     } catch (error) {
-      console.error('Import error:', error);
+      logError(error, 'Import Posts');
       throw error;
     }
   },
@@ -506,11 +523,10 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
         .from('portal_import_posts')
         .update({
           status: 'analyzing',
-          last_modified_by: get().userId,
         })
         .eq('id', id);
 
-      // Run AI analysis
+      // Run AI analysis (this starts the n8n workflow)
       const aiResult = await aiAnalyzeWithTimeout(
         { url: post.url, raw: post.rawContent ?? '' },
         60000, // Increased to 60 seconds
@@ -523,9 +539,28 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
         return;
       }
 
-      const parsedJson = adaptAiToParsedPost(aiResult, '');
+      // Adapt the response to our format (same as original working version)
+      const parsedJson = adaptAiToParsedPost(aiResult, post.url);
 
-      // Update with parsed result
+      // Update the local store with results (same as original)
+      set((state) => ({
+        posts: state.posts.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                status: 'parsed' as const,
+                parsedJson,
+                lastUpdatedAt: new Date().toISOString(),
+              }
+            : p
+        ),
+        inflightByPostId: {
+          ...state.inflightByPostId,
+          [id]: undefined,
+        },
+      }));
+
+      // Update with parsed result in database
       const update = postRowToImportPostUpdate(
         {
           status: 'parsed',
@@ -546,15 +581,14 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       await get().completeStep(id, 'raw');
     } catch (error: unknown) {
       if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('Analysis error:', error);
+        logError(error, 'Analysis');
         
         // Revert status on error
         await getSupabaseClient()
           .schema('portal')
-        .from('portal_import_posts')
+          .from('portal_import_posts')
           .update({
             status: 'pending',
-            last_modified_by: get().userId,
           })
           .eq('id', id);
       }
@@ -567,6 +601,7 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
       });
     }
   },
+
 
   setImages: async (id: string, images: ImageItem[]) => {
     try {
@@ -611,11 +646,16 @@ export const useSupabaseStore = create<SupabaseStoreState>((set, get) => ({
   reset: async () => {
     try {
       // Delete all posts for current user
+      const userId = get().userId;
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+      
       const { error } = await getSupabaseClient()
         .schema('portal')
         .from('portal_import_posts')
         .delete()
-        .eq('created_by', get().userId);
+        .eq('admin_user_id', userId);
 
       if (error) throw error;
 

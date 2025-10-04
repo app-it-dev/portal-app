@@ -7,16 +7,21 @@ export default async function PortalHome() {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   // Check admin status
+  if (!user?.id) {
+    return <div>User not authenticated</div>;
+  }
+
   const { data: adminCheck, error: adminError } = await supabase
     .from('admins')
     .select('user_id, role, is_active')
-    .eq('user_id', user?.id)
+    .eq('user_id', user.id)
     .eq('is_active', true)
     .limit(1);
 
+  // Dashboard data will be fetched from portal_import_posts
   const { data: dashboard, error: dashboardError } = await supabase
     .schema('portal')
-    .from('admin_dashboard')
+    .from('portal_import_posts')
     .select('*');
 
   const { data: posts, error: postsError } = await supabase
